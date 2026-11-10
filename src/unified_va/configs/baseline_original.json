@@ -1,0 +1,214 @@
+{
+  "seed": 42,
+  "device": "__DEVICE__",
+  "batch_size": 1,
+  "lr": 0.00015,
+  "n_epochs": 3,
+  "int_weight": 0.5,
+  "int_mode": "regression",
+  "distill_weight": 0.3,
+  "goemo_ratio": 0.5,
+  "tag": "unified_va_baseline",
+  "n_rounds": 2,
+  "n_epochs_stage1": 2,
+  "n_epochs_stage2": 2,
+  "n_clusters": 4,
+  "cluster_weight": 0.3,
+  "lang": "eng",
+  "filter_unclear": false,
+  "encoder": {
+    "model_name": "FacebookAI/xlm-roberta-large",
+    "pooling": "mean",
+    "hidden_dim": 1024
+  },
+  "amp": true,
+  "amp_dtype": "bf16",
+  "arousal_anti_collapse": {
+    "enabled": false
+  },
+  "auxiliary_data": {
+    "enabled": true,
+    "loss_weight": 1.0,
+    "sources": [
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/eng",
+        "domain": "restaurant",
+        "lang": "eng",
+        "track": "A",
+        "train_file": "eng_restaurant_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_b/subtask_1/deu",
+        "domain": "politics",
+        "lang": "deu",
+        "track": "B",
+        "train_file": "deu_politics_train_task1.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/eng",
+        "domain": "laptop",
+        "lang": "eng",
+        "track": "A",
+        "train_file": "eng_laptop_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/zho",
+        "domain": "laptop",
+        "lang": "zho",
+        "track": "A",
+        "train_file": "zho_laptop_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/ukr",
+        "domain": "restaurant",
+        "lang": "ukr",
+        "track": "A",
+        "train_file": "ukr_restaurant_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/zho",
+        "domain": "restaurant",
+        "lang": "zho",
+        "track": "A",
+        "train_file": "zho_restaurant_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/jpn",
+        "domain": "hotel",
+        "lang": "jpn",
+        "track": "A",
+        "train_file": "jpn_hotel_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/jpn",
+        "domain": "finance",
+        "lang": "jpn",
+        "track": "A",
+        "train_file": "jpn_finance_train_task1.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/rus",
+        "domain": "restaurant",
+        "lang": "rus",
+        "track": "A",
+        "train_file": "rus_restaurant_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/zho",
+        "domain": "finance",
+        "lang": "zho",
+        "track": "A",
+        "train_file": "zho_finance_train_task1.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_b/subtask_1/zho",
+        "domain": "environmental_protection",
+        "lang": "zho",
+        "track": "B",
+        "train_file": "zho_environmental_protection_train_task1.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_b/subtask_1/pcm",
+        "domain": "politics",
+        "lang": "pcm",
+        "track": "B",
+        "train_file": "pcm_politics_train_task1.jsonl",
+        "weight": 1.0
+      }
+    ]
+  },
+  "data_dir": "__DATA_ROOT__/track_a/subtask_1/jpn",
+  "train_file": "empty_placeholder.jsonl",
+  "dev_file": "jpn_hotel_dev_task1.jsonl",
+  "test_file": "jpn_hotel_test_task1.jsonl",
+  "dataloader_num_workers": 0,
+  "dataloader_persistent_workers": false,
+  "dataloader_pin_memory": true,
+  "eval_dataloader_num_workers": 0,
+  "eval_dataloader_persistent_workers": false,
+  "eval_dataloader_pin_memory": true,
+  "eval_batch_size": 1,
+  "eval_every_updates": 2500,
+  "freeze_until": 24,
+  "grad_accum": 16,
+  "grad_clip": 1.0,
+  "head_type": "linear",
+  "input_format": "instruction_va_v1",
+  "loss": "huber",
+  "macro_dev_eval": {
+    "enabled": true,
+    "targets": [
+      "eng_restaurant",
+      "deu_politics",
+      "eng_laptop",
+      "zho_laptop",
+      "ukr_restaurant",
+      "zho_restaurant",
+      "jpn_hotel",
+      "jpn_finance",
+      "rus_restaurant",
+      "zho_finance",
+      "zho_environmental_protection",
+      "pcm_politics"
+    ],
+    "use_for_best": true
+  },
+  "max_len": 192,
+  "recipe_name": "unified_va_baseline",
+  "run_test": false,
+  "save_all_checkpoints": false,
+  "save_every_updates": 0,
+  "save_full_backbone_checkpoint": true,
+  "scheduler": "cosine",
+  "small_llm": {
+    "attn_implementation": "sdpa",
+    "feature_dropout": 0.1,
+    "gradient_checkpointing": true,
+    "local_files_only": true,
+    "model_name": "__MODEL_DIR__",
+    "pooling": "last_token",
+    "prompt_template": "You are a multilingual valence-arousal regression backbone.\nRead the text and the target aspect, then produce a hidden representation for continuous affect prediction.\nAspect: {aspect}\nText: {text}",
+    "torch_dtype": "bfloat16",
+    "model_repository": "Qwen/Qwen3-8B-Base",
+    "revision": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4",
+    "model_revision": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4",
+    "tokenizer_revision": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4"
+  },
+  "task": "small_llm_va",
+  "teacher": {
+    "enabled": false
+  },
+  "va_calibration": false,
+  "va_target_normalization": true,
+  "warmup_ratio": 0.1,
+  "weight_decay": 0.01,
+  "output_dir": "__RUN_DIR__/outputs",
+  "experiment": {
+    "stage": "baseline",
+    "split": "original",
+    "variant": "full",
+    "train_aspects": 40126,
+    "dev_aspects": 3532,
+    "expected_updates": 7524,
+    "development_events": [
+      2500,
+      2508,
+      5000,
+      5016,
+      7500,
+      7524
+    ],
+    "source_semantics_preserved": true
+  }
+}

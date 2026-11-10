@@ -1,0 +1,3 @@
+experiment: main
+split: original
+seeds: [42, 13, 7]

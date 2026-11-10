@@ -1,0 +1,436 @@
+{
+  "amp": true,
+  "amp_dtype": "bf16",
+  "arousal_anti_collapse": {
+    "enabled": false
+  },
+  "auxiliary_data": {
+    "enabled": true,
+    "loss_weight": 1.0,
+    "sources": [
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/eng",
+        "domain": "restaurant",
+        "lang": "eng",
+        "track": "A",
+        "train_file": "eng_restaurant_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_b/subtask_1/deu",
+        "domain": "politics",
+        "lang": "deu",
+        "track": "B",
+        "train_file": "deu_politics_train_task1.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/eng",
+        "domain": "laptop",
+        "lang": "eng",
+        "track": "A",
+        "train_file": "eng_laptop_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/zho",
+        "domain": "laptop",
+        "lang": "zho",
+        "track": "A",
+        "train_file": "zho_laptop_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/ukr",
+        "domain": "restaurant",
+        "lang": "ukr",
+        "track": "A",
+        "train_file": "ukr_restaurant_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/zho",
+        "domain": "restaurant",
+        "lang": "zho",
+        "track": "A",
+        "train_file": "zho_restaurant_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/jpn",
+        "domain": "hotel",
+        "lang": "jpn",
+        "track": "A",
+        "train_file": "jpn_hotel_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/jpn",
+        "domain": "finance",
+        "lang": "jpn",
+        "track": "A",
+        "train_file": "jpn_finance_train_task1.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/rus",
+        "domain": "restaurant",
+        "lang": "rus",
+        "track": "A",
+        "train_file": "rus_restaurant_train_alltasks.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_a/subtask_1/zho",
+        "domain": "finance",
+        "lang": "zho",
+        "track": "A",
+        "train_file": "zho_finance_train_task1.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_b/subtask_1/zho",
+        "domain": "environmental_protection",
+        "lang": "zho",
+        "track": "B",
+        "train_file": "zho_environmental_protection_train_task1.jsonl",
+        "weight": 1.0
+      },
+      {
+        "data_dir": "__DATA_ROOT__/track_b/subtask_1/pcm",
+        "domain": "politics",
+        "lang": "pcm",
+        "track": "B",
+        "train_file": "pcm_politics_train_task1.jsonl",
+        "weight": 1.0
+      }
+    ]
+  },
+  "backbone_conditional_adapter": {
+    "bottleneck_dim": 64,
+    "dropout": 0.1,
+    "embed_dim": 16,
+    "enabled": true,
+    "end_layer": 36,
+    "start_layer": 24,
+    "use_composition": true,
+    "use_shared": true,
+    "condition_source": "soft_text",
+    "langs": [
+      "deu",
+      "eng",
+      "jpn",
+      "pcm",
+      "rus",
+      "ukr",
+      "zho"
+    ],
+    "domains": [
+      "environmental_protection",
+      "finance",
+      "hotel",
+      "laptop",
+      "politics",
+      "restaurant"
+    ],
+    "soft_condition_hidden": 128,
+    "soft_condition_pooling": "masked_mean"
+  },
+  "batch_size": 1,
+  "cluster_weight": 0.3,
+  "data_dir": "__DATA_ROOT__/track_a/subtask_1/jpn",
+  "dataloader_num_workers": 0,
+  "dataloader_persistent_workers": false,
+  "dataloader_pin_memory": true,
+  "dev_file": "jpn_hotel_dev_task1.jsonl",
+  "device": "__DEVICE__",
+  "distill_weight": 0.3,
+  "dual_head_mlp": {
+    "branch_hidden": 256,
+    "dropout": 0.1,
+    "shared_hidden": 512
+  },
+  "encoder": {
+    "hidden_dim": 1024,
+    "model_name": "FacebookAI/xlm-roberta-large",
+    "pooling": "mean"
+  },
+  "eval_batch_size": 1,
+  "eval_dataloader_num_workers": 0,
+  "eval_dataloader_persistent_workers": false,
+  "eval_dataloader_pin_memory": true,
+  "eval_every_updates": 500,
+  "filter_unclear": false,
+  "freeze_until": 24,
+  "goemo_ratio": 0.5,
+  "grad_accum": 16,
+  "grad_clip": 1.0,
+  "head_type": "dual_mlp",
+  "input_format": "instruction_va_v1",
+  "int_mode": "regression",
+  "int_weight": 0.5,
+  "lang": "jpn",
+  "loss": "huber",
+  "lr": 5e-05,
+  "macro_dev_eval": {
+    "enabled": true,
+    "selection": {
+      "ccc_macro_floor": 0.4,
+      "ccc_macro_floor_weight": 0.25,
+      "mode": "macro_plus_worst_k",
+      "pcc_macro_floor": 0.45,
+      "pcc_macro_floor_weight": 0.1,
+      "pseudo_ood_targets": [
+        "deu_politics",
+        "ukr_restaurant",
+        "jpn_finance",
+        "pcm_politics",
+        "zho_environmental_protection"
+      ],
+      "pseudo_ood_weight": 0.25,
+      "pseudo_ood_worst_k": 2,
+      "pseudo_ood_worst_k_weight": 0.15,
+      "std_gap_a_weight": 0.15,
+      "std_gap_v_weight": 0.05,
+      "worst_k": 4,
+      "worst_k_weight": 0.3
+    },
+    "targets": [
+      "eng_restaurant",
+      "deu_politics",
+      "eng_laptop",
+      "zho_laptop",
+      "ukr_restaurant",
+      "zho_restaurant",
+      "jpn_hotel",
+      "jpn_finance",
+      "rus_restaurant",
+      "zho_finance",
+      "zho_environmental_protection",
+      "pcm_politics"
+    ],
+    "use_for_best": true
+  },
+  "max_len": 192,
+  "n_clusters": 4,
+  "n_epochs": 1,
+  "n_epochs_stage1": 2,
+  "n_epochs_stage2": 2,
+  "n_rounds": 2,
+  "optimizer": {
+    "llrd": {
+      "enabled": false
+    }
+  },
+  "pretrain_from": "__PARENT_CHECKPOINT__",
+  "pretrain_load": {
+    "load_backbone": true,
+    "load_head": "always"
+  },
+  "recipe_name": "unified_va_stage2",
+  "run_test": false,
+  "save_all_checkpoints": false,
+  "save_every_updates": 0,
+  "save_full_backbone_checkpoint": false,
+  "scheduler": "cosine",
+  "seed": 42,
+  "small_llm": {
+    "model_name": "__MODEL_DIR__",
+    "model_repository": "Qwen/Qwen3-8B-Base",
+    "revision": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4",
+    "model_revision": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4",
+    "tokenizer_revision": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4",
+    "local_files_only": true,
+    "attn_implementation": "sdpa",
+    "feature_dropout": 0.1,
+    "gradient_checkpointing": true,
+    "pooling": "gated_last_mean",
+    "torch_dtype": "bfloat16",
+    "prompt_template": "Predict valence and arousal for the aspect from the text.\n\nText: {text} Aspect: {aspect}"
+  },
+  "tag": "unified_va_stage2",
+  "task": "small_llm_va",
+  "teacher": {
+    "enabled": false
+  },
+  "test_file": "jpn_hotel_test_task1.jsonl",
+  "train_file": "empty_placeholder.jsonl",
+  "va_calibration": false,
+  "va_target_normalization": true,
+  "warmup_ratio": 0.1,
+  "weight_decay": 0.01,
+  "output_dir": "__RUN_DIR__/outputs",
+  "sampler_seed": 42,
+  "disable_explicit_metadata": true,
+  "text_only_inference": true,
+  "soft_condition_label_supervision": {
+    "enabled": true,
+    "loss_weight": 0.1,
+    "lang_weight": 1.0,
+    "domain_weight": 1.0,
+    "start_update": 0
+  },
+  "checkpoint_storage": {
+    "format": "pinned_base_overlay_v1"
+  },
+  "max_step_checkpoints_to_keep": 0,
+  "matched_protocol": {
+    "training_targets": [
+      "eng_restaurant",
+      "deu_politics",
+      "eng_laptop",
+      "zho_laptop",
+      "ukr_restaurant",
+      "zho_restaurant",
+      "jpn_hotel",
+      "jpn_finance",
+      "rus_restaurant",
+      "zho_finance",
+      "zho_environmental_protection",
+      "pcm_politics"
+    ],
+    "held_out_targets": [
+      "eng_environmental_protection",
+      "tat_restaurant",
+      "swa_politics"
+    ],
+    "train_only_normalization": {
+      "v_mean": 5.863322734832764,
+      "v_std": 1.530503511428833,
+      "a_mean": 6.103792667388916,
+      "a_std": 0.9957404732704163
+    },
+    "expected_training_aspects": 40126,
+    "updates_per_epoch": 2508,
+    "effective_batch_size_world1": 16,
+    "training_record_audit": {
+      "vocabulary_source": "actual expanded training records only; dev/test excluded",
+      "training_aspects": 40126,
+      "target_aspect_counts": {
+        "eng_restaurant": 3659,
+        "deu_politics": 1335,
+        "eng_laptop": 5773,
+        "zho_laptop": 6502,
+        "ukr_restaurant": 2487,
+        "zho_restaurant": 8523,
+        "jpn_hotel": 2846,
+        "jpn_finance": 1672,
+        "rus_restaurant": 2487,
+        "zho_finance": 2633,
+        "zho_environmental_protection": 1091,
+        "pcm_politics": 1118
+      },
+      "langs": [
+        "deu",
+        "eng",
+        "jpn",
+        "pcm",
+        "rus",
+        "ukr",
+        "zho"
+      ],
+      "domains": [
+        "environmental_protection",
+        "finance",
+        "hotel",
+        "laptop",
+        "politics",
+        "restaurant"
+      ],
+      "seen_combinations": [
+        "deu_politics",
+        "eng_laptop",
+        "eng_restaurant",
+        "jpn_finance",
+        "jpn_hotel",
+        "pcm_politics",
+        "rus_restaurant",
+        "ukr_restaurant",
+        "zho_environmental_protection",
+        "zho_finance",
+        "zho_laptop",
+        "zho_restaurant"
+      ],
+      "held_out_combinations": [
+        "eng_environmental_protection",
+        "tat_restaurant",
+        "swa_politics"
+      ],
+      "held_out_unseen_languages": [
+        "swa",
+        "tat"
+      ],
+      "unknown_category_policy": "unknown_index_0; not a trained known class; nonzero residuals remain possible",
+      "normalization": {
+        "v_mean": 5.863322734832764,
+        "v_std": 1.530503511428833,
+        "a_mean": 6.103792667388916,
+        "a_std": 0.9957404732704163
+      },
+      "roles": {
+        "model_text": [
+          "text",
+          "aspect"
+        ],
+        "VA_gold": "training loss and post-hoc evaluation only; never prompt or routing input",
+        "M_metadata": "language/domain condition inputs, explicitly separate from VA gold",
+        "T_metadata": "independent training auxiliary labels only; no prediction input"
+      }
+    },
+    "split_id": "original",
+    "normalization_policy": "train-only float32 population moments; identical merged records across arms",
+    "enabled": true,
+    "arm": "T",
+    "protocol_version": "original_source_stage2_textfix_20261104",
+    "optimizer_policy": "reset",
+    "world_size": 1,
+    "require_complete_dev": true,
+    "save_evaluation_checkpoints": true,
+    "expected_total_updates": 2508,
+    "data_order_policy": "original_global_torch_RNG_shuffle",
+    "metadata_source": "training auxiliary targets only; forbidden as prediction inputs",
+    "route_status": "input hidden states only; metadata used only as training auxiliary targets",
+    "selection_policy": "exact_recovered_historical_DP",
+    "author_approval_scope": "Explicit Unified VA regression training command",
+    "author_approval": "approved",
+    "execution_authorized": true
+  },
+  "method_validation": {
+    "stage": "original_source_textfix",
+    "variant": "full",
+    "update_observer": {
+      "enabled": true,
+      "updates": [
+        1,
+        2,
+        10,
+        500,
+        1000,
+        1500,
+        2000,
+        2500,
+        2508
+      ]
+    }
+  },
+  "track": "A",
+  "domain": "hotel",
+  "legacy_prediction_rounding": "python_two_decimals_before_metrics",
+  "experiment": {
+    "stage": "stage2",
+    "split": "original",
+    "variant": "full",
+    "train_aspects": 40126,
+    "dev_aspects": 3532,
+    "expected_updates": 2508,
+    "development_events": [
+      500,
+      1000,
+      1500,
+      2000,
+      2500,
+      2508
+    ],
+    "source_semantics_preserved": true
+  }
+}
