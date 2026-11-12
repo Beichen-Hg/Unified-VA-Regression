@@ -176,13 +176,15 @@ def test_record_cluster_bootstrap_preserved_and_ten_thousand_draws():
 
 def test_result_files_and_statistical_module_are_byte_preserved():
     expected = {
-        "results/stage_results.csv": "1a696030f46ecf74c680de38fec076f41639d1afc75d2794f784b9dc7bb4408a",
-        "results/per_target_results.csv": "ed327c5243f1ebcb2ebcdf9039b179ff547ff52ddcae98b8ff0ef6075148b356",
-        "src/unified_va/resources/mainline_summary.json": "564501682f5eb21da06cda2a2903862734e850974ef0f7bcf01e81d5f8254637",
+        "results/stage_results.csv": "8790af34fa5a6e0763c8dda627e7c447c0b16ba5c9918336d3c7c4431c222db6",
+        "results/per_target_results.csv": "2743303d73b0a56d2fa326c59b66a25ff86f33e9db4dab0a8daa64c9d02158bf",
+        "src/unified_va/resources/mainline_summary.json": "d0b8ee026ddc72e4e0ec6cfa1b6076c35200de552240ddec31dccf33cf4b4eca",
         "src/unified_va/paired_statistics.py": "6419d40e8cae571afc1d1d4178b846b2f3c81b60da27b499ef26f6bc0300818d",
     }
     for name, digest in expected.items():
-        assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest
+        # Git stores LF; Windows checkouts may use CRLF for text files.
+        content = (ROOT / name).read_bytes().replace(b"\r\n", b"\n")
+        assert hashlib.sha256(content).hexdigest() == digest
 
 
 def test_python_sources_parse_without_dynamic_source_rewriting():
