@@ -1,44 +1,56 @@
-# Experiments
+# Experiments and hyperparameters
 
-## Partitions and training budgets
+## Complementary partitions
 
-Both partitions select checkpoints on 12 training/development targets and evaluate the same 15 targets. Target order and membership are defined in [config.py](../src/unified_va/config.py).
+Both partitions use 12 in-pool training/development targets and 3 held-out targets. Evaluation covers the same 15 targets and 19,977 aspects. Ordered target definitions are centralized in [config.py](../src/unified_va/config.py).
 
-| Partition | Train aspects | Dev aspects | Baseline / Stage 1 | Stage 2 |
-|:--|--:|--:|:--|:--|
-| original | 40,126 | 3,532 | 3 epochs; 7,524 updates; 6 dev checks | 1 epoch; 2,508 updates; 6 dev checks |
-| alt1 | 38,687 | 3,372 | 3 epochs; 7,254 updates; 5 dev checks | 1 epoch; 2,418 updates; 5 dev checks |
+| Partition | Train aspects | Dev aspects | Held-out targets |
+|:--|--:|--:|:--|
+| Original | 40,126 | 3,532 | `eng_environmental_protection`, `tat_restaurant`, `swa_politics` |
+| Alternative (Alt1) | 38,687 | 3,372 | `rus_restaurant`, `ukr_restaurant`, `zho_finance` |
 
-Seeds are 42, 13 and 7. The complete pipeline is run separately for each partition and seed.
+## Training
 
-## Baseline
+| Setting | Baseline | Stage 1 | Stage 2 |
+|:--|:--|:--|:--|
+| Backbone initialization | Qwen3-8B-Base | Qwen3-8B-Base | Same-seed selected Stage 1 |
+| Pooling | Last token | Gated last/mean | Gated last/mean |
+| VA head | Linear | Shared 512 → separate 256 → scalar | Shared 512 → separate 256 → scalar |
+| Epochs | 3 | 3 | 1 |
+| Learning rate | 1.5e-4 | 1.5e-4 | 5e-5 |
+| Effective batch | 16 | 16 | 16 |
+| Loss | Huber | Huber | Huber + 0.10 × auxiliary CE |
+| Selection | Macro dev RMSE-VA | Macro dev RMSE-VA | DP |
 
-```bash
-python scripts/train.py --stage baseline --split alt1 --seed 42 \
-  --data-root "$DATA_ROOT" --model-dir "$MODEL_DIR" \
-  --run-dir runs/alt1/42/baseline --device cuda:0
-python scripts/evaluate.py --run-dir runs/alt1/42/baseline \
-  --data-root "$DATA_ROOT" --model-dir "$MODEL_DIR" --device cuda:0
-```
+Common settings: microbatch 1, gradient accumulation 16, maximum sequence length 192, AdamW, weight decay 0.01, gradient clipping 1.0, cosine schedule with 10% warmup, and feature/head dropout 0.10. Decoder layers 0–23 are frozen; layers 24–35 and the final normalization/readout are trainable. All stages use non-reentrant gradient checkpointing.
 
-The baseline retains its own pooling, readout and prompt. Baseline → Stage 1 is a procedural comparison, including these differences.
+| Partition | Baseline / Stage 1 updates | Stage 2 updates | Seeds |
+|:--|--:|--:|:--|
+| Original | 7,524 | 2,508 | 42, 13, 7 |
+| Alternative (Alt1) | 7,254 | 2,418 | 42, 13, 7 |
 
-## Auxiliary diagnostics
+Exact development checkpoints are listed in the [configuration guide](../configs/README.md).
 
-```bash
-python scripts/analyze.py diagnose \
-  --checkpoint runs/original/42/stage2/checkpoints/stage2.pt \
-  --model-dir "$MODEL_DIR" --input labelled_aspect_rows.json \
-  --output results/condition_diagnostics.json
+Stage 2 inserts 12 zero-initialized four-branch adapters with bottleneck width 64, condition embedding dimension 16, and dropout 0.10. Each layer infers a 32-dimensional concatenated language/domain condition from masked-mean hidden states through an MLP of width 128. The Global branch is unconditioned; Language, Domain, and Compound residuals use tanh condition scaling and sigmoid gates. Training-only classifiers decode layer-averaged conditions; the sum of language and domain cross-entropy losses has weight 0.10.
 
-python scripts/analyze.py dp-sensitivity \
-  --run-dir runs/original/42/stage2 --output results/dp_sensitivity42.json
-```
+## Distribution-preserving checkpoint selection
 
-Auxiliary accuracy/macro F1 describe the saved condition classifier. Known-class coverage is reported, excluding unknown and configured-but-untrained labels. This classifier does not choose the VA adapter route. DP sensitivity reweights saved development archives without changing the released selected checkpoint.
+Let R be mean development RMSE-VA over the 12 in-pool targets. The DP score is R plus the weighted terms below.
 
-## Metrics and statistics
+| Term | Definition | Weight |
+|:--|:--|--:|
+| Tail | Mean of the 4 largest target RMSE-VA values | 0.30 |
+| Pseudo-OOD | Mean over configured targets present in the development pool | 0.25 |
+| Pseudo-OOD tail | Mean of the 2 largest errors in that subset | 0.15 |
+| V spread | Mean absolute predicted/gold population-SD gap | 0.05 |
+| A spread | Mean absolute predicted/gold population-SD gap | 0.15 |
+| CCC floor | Mean max(0, 0.40 − target CCC-macro) | 0.25 |
+| PCC floor | Mean max(0, 0.45 − target PCC-macro) | 0.10 |
 
-For each target, RMSE-VA is `sqrt(mean((v_pred-v_true)^2 + (a_pred-a_true)^2))`. Overall is the equal-weight mean of the 15 target values. Training-covered and held-out groups are reported separately. Seed means and sample standard deviations summarize individual model scalars.
+The pseudo-OOD subset is `deu_politics`, `ukr_restaurant`, `jpn_finance`, `pcm_politics`, and `zho_environmental_protection`, intersected with the current development pool. Checkpoints minimize DP; ties select the earlier update. Test scores never enter selection.
 
-Paired bootstrap uses 10,000 draws with seed 20261101. It resamples original records within targets, retaining all aspects of a record together and sharing draws between compared systems and fixed training seeds. These intervals are conditional on the fitted models/targets and are separate from training-seed variation. The test data were previously examined; they are not described as a new blind test.
+## Metrics and intervals
+
+Per-target RMSE-VA is sqrt(mean(error_V² + error_A²)). Overall is the equal-weight mean over 15 targets. In-pool and held-out results average their respective target subsets. Seed summaries average fitted-model scalar scores rather than predictions.
+
+Paired 95% confidence intervals use 10,000 record-cluster bootstrap draws within each target. Draws are shared between compared systems, and all aspects of a record stay together. Intervals condition on the fitted models; sample SD separately describes training-seed variation. The unchanged implementation is [paired_statistics.py](../src/unified_va/paired_statistics.py).

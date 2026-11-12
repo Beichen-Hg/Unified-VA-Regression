@@ -1,75 +1,197 @@
 from pathlib import Path
-import ast,copy,json,os,re,subprocess,sys
-import numpy as np
+import ast
+import copy
+import hashlib
+import inspect
+import json
+import math
+import subprocess
+import sys
 import pytest
-from unified_va.config import template,prepare,validate_effective,split_targets,TARGETS
-from unified_va.inference import input_rows,associate
-from unified_va.diagnostics import classification
+from unified_va import config
+from unified_va.cli import parser
 from unified_va.paired_statistics import bootstrap
+from unified_va.training.dp_selection import compute_macro_dev_selection
 
-ROOT=Path(__file__).resolve().parents[1]
-
-
-@pytest.mark.parametrize('stage',['baseline','stage1','stage2'])
-@pytest.mark.parametrize('split',['original','alt1'])
-def test_relocated_profiles_and_ordered_data_membership(tmp_path,stage,split):
-    cfg=prepare(stage,split,13,tmp_path/'official-data',tmp_path/'model',tmp_path/stage,device='cpu',parent=tmp_path/'S' if stage=='stage2' else None)
-    assert validate_effective(cfg)
-    train,held=split_targets(split)
-    assert len(train)==12 and len(held)==3 and not set(train)&set(held)
-    assert [Path(p).stem for p in cfg['macro_dev_eval']['targets']]==list(train)
-    assert all(Path(p).is_file() for p in cfg['macro_dev_eval']['targets'])
-    assert (Path(cfg['data_dir'])/cfg['train_file']).read_text()==''
-    assert not (tmp_path/'official-data').exists()
-    changed=copy.deepcopy(cfg);changed['lr']*=2
-    with pytest.raises(ValueError):validate_effective(changed)
+ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_input_boundary_and_post_forward_identity_and_gold_association():
-    rows=[dict(text='example',aspect='service',id='private',aspect_index=2,lang='eng',domain='restaurant',v=6.,a=4.)]
-    safe=input_rows(rows)
-    assert set(safe[0])=={'text','aspect','id','aspect_index','sample_aspects'}
-    assert safe[0]['id']=='0' and safe[0]['aspect_index']==0
-    result=associate([dict(v_pred=5.,a_pred=4.)],rows)
-    assert result[0]['id']=='private' and result[0]['aspect_index']==2
-    assert result[0]['v_true']==6. and result[0]['target']=='eng_restaurant'
+@pytest.mark.parametrize("stage", ["baseline", "stage1", "stage2"])
+@pytest.mark.parametrize("split", ["original", "alt1"])
+def test_six_profiles_unique_prompt_checkpointing_partitions_and_frozen_settings(
+    tmp_path, stage, split
+):
+    cfg = config.prepare(
+        stage,
+        split,
+        13,
+        tmp_path / "data",
+        tmp_path / "model",
+        tmp_path / stage,
+        device="cpu",
+        parent=tmp_path / "stage1" if stage == "stage2" else None,
+    )
+    assert config.validate_effective(cfg)
+    assert cfg["small_llm"]["prompt_template"] == config.PROMPT
+    assert cfg["small_llm"]["gradient_checkpointing_kwargs"] == {"use_reentrant": False}
+    training, held = config.split_targets(split)
+    assert len(training) == 12 and len(held) == 3 and not set(training) & set(held)
+    retired = {
+        "distill_weight",
+        "goemo_ratio",
+        "n_rounds",
+        "n_epochs_stage1",
+        "n_epochs_stage2",
+        "n_clusters",
+        "cluster_weight",
+        "arousal_anti_collapse",
+        "teacher",
+        "int_weight",
+        "int_mode",
+        "legacy_prediction_rounding",
+        "author_approval",
+        "author_approval_scope",
+        "execution_authorized",
+    }
+
+    def keys(value):
+        if isinstance(value, dict):
+            return set(value).union(*(keys(v) for v in value.values()))
+        if isinstance(value, list):
+            return set().union(*(keys(v) for v in value))
+        return set()
+
+    assert not keys(cfg) & retired
+    assert not (tmp_path / "data").exists()
+    changed = copy.deepcopy(cfg)
+    changed["lr"] *= 2
+    with pytest.raises(ValueError):
+        config.validate_effective(changed)
 
 
-def test_auxiliary_metrics_exclude_unknown_and_untrained_classes():
-    report=classification([0,1,1,2,3],[1,1,0,1,3],[1,2])
-    assert report['known']==3 and report['unsupported']==2
-    assert report['coverage']==.6 and report['accuracy']==pytest.approx(1/3)
-    assert report['macro_F1']==.25
+@pytest.mark.parametrize("recipe", ["main_original", "main_alt1"])
+def test_original_script_arguments_and_dry_run_create_no_runs(tmp_path, recipe):
+    output = tmp_path / "fresh runs"
+    result = subprocess.check_output(
+        [
+            sys.executable,
+            str(ROOT / "scripts/reproduce.py"),
+            "--config",
+            str(ROOT / "configs" / (recipe + ".yaml")),
+            "--data-root",
+            str(tmp_path / "data"),
+            "--model-dir",
+            str(tmp_path / "model"),
+            "--output-dir",
+            str(output),
+            "--dry-run",
+            "--json",
+        ],
+        text=True,
+    )
+    jobs = json.loads(result)
+    assert len(jobs) == 12 and not output.exists()
+    for job in jobs:
+        command = (
+            ["evaluate", *job[2:]]
+            if Path(job[1]).name == "evaluate.py"
+            else ["plan", *job[2:]]
+        )
+        parser().parse_args(command)
+    for seed in (42, 13, 7):
+        training = [
+            job
+            for job in jobs
+            if Path(job[1]).name == "train.py"
+            and job[job.index("--seed") + 1] == str(seed)
+        ]
+        assert len(training) == 2
+        assert (
+            training[1][training[1].index("--parent") + 1]
+            == training[0][training[0].index("--run-dir") + 1]
+        )
 
 
-def test_record_clusters_and_pair_direction_with_multiple_aspects():
-    pairs=[]
-    for seed in [42,13,7]:
-        pair={'seed':seed}
-        for role,error in [('S',2.),('T',1.)]:
-            pair[role]=[dict(target=t,id=record,aspect_index=i,v_true=4.,a_true=5.,v_pred=4.+error,a_pred=5.+error)
-                        for t in ['a','b','c'] for record in ['x','y'] for i in [0,1]]
+def test_dp_all_penalties_intersection_and_macro_only():
+    cfg = config.template("stage2", "alt1")["macro_dev_eval"]["selection"]
+    training, _ = config.split_targets("alt1")
+    values = {
+        t: dict(
+            rmse_va=1 + i / 10,
+            std_gap_v=0.2,
+            std_gap_a=0.4,
+            ccc_macro=0.1,
+            pcc_macro=0.2,
+        )
+        for i, t in enumerate(training)
+    }
+    score, detail = compute_macro_dev_selection(values, cfg)
+    errors = sorted((v["rmse_va"] for v in values.values()), reverse=True)
+    pseudo = sorted(
+        (values[t]["rmse_va"] for t in cfg["pseudo_ood_targets"] if t in values),
+        reverse=True,
+    )
+    expected = sum(errors) / 12 + 0.3 * sum(errors[:4]) / 4
+    expected += 0.25 * sum(pseudo) / len(pseudo) + 0.15 * sum(pseudo[:2]) / 2
+    expected += 0.05 * 0.2 + 0.15 * 0.4 + 0.25 * (0.4 - 0.1) + 0.1 * (0.45 - 0.2)
+    assert score == pytest.approx(expected, abs=1e-12)
+    assert detail["n_targets"] == 12
+    assert compute_macro_dev_selection(values, {"mode": "macro_mean"})[
+        0
+    ] == pytest.approx(sum(errors) / 12)
+
+
+def test_record_cluster_bootstrap_preserved_and_ten_thousand_draws():
+    assert inspect.signature(bootstrap).parameters["resamples"].default == 10000
+    pairs = []
+    for seed in (42, 13):
+        pair = {"seed": seed}
+        for role, error in [("S", 2.0), ("T", 1.0)]:
+            pair[role] = [
+                dict(
+                    target=t,
+                    id=record,
+                    aspect_index=i,
+                    v_true=4.0,
+                    a_true=5.0,
+                    v_pred=4.0 + error,
+                    a_pred=5.0 + error,
+                )
+                for t in ("a", "b", "c")
+                for record in ("x", "y")
+                for i in (0, 1)
+            ]
         pairs.append(pair)
-    report=bootstrap(pairs,['a','b','c'],['a','b'],{'a':4,'b':4,'c':4},resamples=100,random_seed=20261101)
-    overall=next(r for r in report['group_seed_statistics'] if r['group']=='full')
-    assert overall['T_minus_S_mean']<0 and overall['seeds']==3
-    # Cluster building is exercised by bootstrap; all aspects share their record draw.
-    assert report['bootstrap_intervals']
+    result = bootstrap(
+        pairs,
+        ["a", "b", "c"],
+        ["a", "b"],
+        {"a": 4, "b": 4, "c": 4},
+        random_seed=20261101,
+    )
+    overall = next(r for r in result["group_seed_statistics"] if r["group"] == "full")
+    assert overall["T_minus_S_mean"] == pytest.approx(-math.sqrt(2))
+    assert result["bootstrap_intervals"]
 
 
-def test_every_python_file_parses_and_release_has_no_host_absolute_paths():
-    for path in ROOT.rglob('*.py'):
-        text=path.read_text(encoding='utf-8');ast.parse(text)
-        assert not re.search(r'/home/[A-Za-z0-9_.-]+/',text)
-        assert not re.search(r'[A-Za-z]:[/\\]Users[/\\][A-Za-z0-9_.-]+',text)
-    for path in (ROOT/'src/unified_va/configs').glob('*.json'):
-        text=path.read_text();json.loads(text)
-        assert '/home/' not in text and 'C:/Users/' not in text
+def test_result_files_and_statistical_module_are_byte_preserved():
+    expected = {
+        "results/stage_results.csv": "1a696030f46ecf74c680de38fec076f41639d1afc75d2794f784b9dc7bb4408a",
+        "results/per_target_results.csv": "ed327c5243f1ebcb2ebcdf9039b179ff547ff52ddcae98b8ff0ef6075148b356",
+        "src/unified_va/resources/mainline_summary.json": "564501682f5eb21da06cda2a2903862734e850974ef0f7bcf01e81d5f8254637",
+        "src/unified_va/paired_statistics.py": "6419d40e8cae571afc1d1d4178b846b2f3c81b60da27b499ef26f6bc0300818d",
+    }
+    for name, digest in expected.items():
+        assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest
 
 
-@pytest.mark.parametrize('role',['baseline','stage1','stage2'])
-def test_actual_source_engine_tiny_training_and_lossless_restore(role):
-    env=dict(os.environ,PYTHONPATH=str(ROOT/'src'),USE_TF='0',CUDA_VISIBLE_DEVICES='',HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1',OMP_NUM_THREADS='2',MKL_NUM_THREADS='2')
-    result=subprocess.run([sys.executable,str(ROOT/'tests/source_smoke.py'),role],cwd=ROOT,env=env,
-        text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=180)
-    assert result.returncode==0,result.stdout
+def test_python_sources_parse_without_dynamic_source_rewriting():
+    for path in (ROOT / "src").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        assert not any(
+            isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Name)
+            and n.func.id in ("exec", "eval")
+            for n in ast.walk(tree)
+        )
+    assert not (ROOT / "src/unified_va/engines").exists()

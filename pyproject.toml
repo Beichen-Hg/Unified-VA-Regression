@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "unified-va-regression"
-version = "0.1.0"
+version = "0.2.0"
 description = "Code for Unified Multilingual and Multidomain Valence-Arousal Regression"
 readme = "README.md"
 requires-python = ">=3.11"
+license = {file = "LICENSE"}
 dependencies = [
   "torch>=2.9,<2.10", "transformers==4.56.1", "numpy==1.26.4",
-  "scipy==1.13.1", "scikit-learn==1.8.0", "PyYAML==6.0.2",
-  "pandas==2.3.1", "tqdm==4.67.1", "accelerate==1.10.1", "safetensors==0.6.2",
+  "PyYAML==6.0.2", "huggingface-hub==0.34.4", "safetensors==0.6.2",
 ]
 
 [project.optional-dependencies]
@@ -26,7 +26,7 @@ include = ["unified_va*"]
 namespaces = true
 
 [tool.setuptools.package-data]
-unified_va = ["configs/*.json", "resources/*.json", "engines/stage2/protocol/*.yaml"]
+unified_va = ["configs/*.json", "resources/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

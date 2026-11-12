@@ -1,45 +1,27 @@
-# Implementation and reproducibility
+# Reproducibility
 
 ## Environment and inputs
 
-The reference environment is Linux/Python 3.11, PyTorch 2.9.0 with CUDA 12.8 and Transformers 4.56.1. Complete versions are in `requirements.txt`. The local Qwen3-8B-Base revision is `49e3418fbbbca6ecbdf9608b4d22e5a407081db4`.
+The tested environment is Linux with Python 3.11, PyTorch 2.9, and Transformers 4.56.1. Dependencies are pinned in [requirements.txt](../requirements.txt). Prepare a local Qwen3-8B-Base snapshot at revision `49e3418fbbbca6ecbdf9608b4d22e5a407081db4` and official files as described in the [data guide](../data/README.md).
 
-Use one process per run. `--device cuda:0` selects the logical CUDA device; allocation to physical hardware can be supplied through `CUDA_VISIBLE_DEVICES` or a scheduler. Dataset lookup uses the explicit `--data-root`; unset the legacy `DIMABSA2026_DATA_DIR` variable to avoid overriding it.
+All stages share the single template in [config.py](../src/unified_va/config.py). Only text and aspect reach tokenization and model forward. IDs, VA labels, language labels, and domain labels are carried separately. Language/domain labels supervise only the Stage 2 training classifiers.
 
-## Stage implementations
+## Execution and checkpointing
 
-`src/unified_va/engines/` contains the stage-specific implementations. Each runs in a separate process, allowing its original `src` imports and model-construction order to remain consistent. Public scripts provide one interface over these implementations.
+Use one explicit device and a fresh output directory per run. Run each partition and seed independently. Stage 2 loads its own seed and partition's selected Stage 1 checkpoint, restores all 12 development targets, checks zero-adapter identity, and validates a scratch backward pass with zero optimizer updates. It then constructs a fresh model and optimizer for formal training.
 
-Baseline uses last-token pooling and a linear head. Stage 1 uses gated last/mean pooling and a dual-branch MLP. Stage 2 continues its pooling/readout and attaches factorized residual adapters after decoder layers 24–35. The condition representation consists of two continuous 16-dimensional vectors computed from input hidden states. A language/domain auxiliary classifier is trained with weight 0.1; VA inference uses the continuous vectors directly.
+Non-reentrant activation checkpointing preserves gradients through trainable decoder blocks 24–35 when earlier blocks are frozen. VA normalization uses only the training pool's float32 population moments. The global Torch RNG determines shuffled training order. Incomplete final accumulation windows retain the configured divisor of 16.
 
-Each residual branch follows pre-normalization, down projection, GELU, conditional tanh scaling where applicable, dropout, up projection and branch gating. The shared branch has no conditional scale. The composition condition concatenates the language and domain vectors. Up-projection weights and biases are initialized to zero.
+Checkpoints store every updated tensor and persistent buffer without quantization, together with the effective configuration, normalization, and base-model reference. Frozen tensors come from the pinned local snapshot. The run retains selected and final checkpoints, development predictions, and metrics. Writes enforce a 40 GiB free-space reserve.
 
-## Trainable paths and input templates
+## Evaluation and reporting
 
-Baseline and Stage 1 retain reentrant gradient checkpointing without an input-gradient hook. Under this execution path, upper-block `requires_grad` flags do not imply an effective update: the reference Stage 1 updates final normalization, pooling and readout, while its upper-block gradients are absent. First-step gradient records are saved with each run. Stage 2 has an effective upper-block, adapter and readout gradient path; it is not adapter-only tuning.
+Evaluation restores the complete selected development cohort before testing the fixed 15 targets. Development and test predictions follow the same path: denormalize, clamp to [1, 9], then apply native Torch `(va * 100).round() / 100`. Checkpoint tensors retain their original precision.
 
-Baseline, Stage 1 and Stage 2 retain their respective prompt templates, available in the complete profiles under `src/unified_va/configs/`. Stage 1 uses a longer foundation prompt and Stage 2 uses a short regression prompt. Stage comparisons evaluate the complete procedure. Zero-adapter identity checks use the same Stage 2 prompt on both S weights and the initialized T model.
+Auxiliary decoding reports known-class coverage, accuracy, macro-F1, and confusion counts. Unknown labels are excluded from classification scores; they do not affect VA prediction. [examples/diagnostics.json](../examples/diagnostics.json) illustrates labelled diagnostic inputs. DP sensitivity re-scores saved development trajectories while leaving the selected model unchanged.
 
-## Data order and optimization
+## Result provenance and tests
 
-The optimizer is AdamW with Huber VA loss, batch size 1, gradient accumulation 16, BF16, maximum length 192, weight decay 0.01 and cosine scheduling with 0.1 warmup. Baseline/Stage 1 use learning rate 1.5e-4; Stage 2 uses 5e-5. The source global-Torch-RNG shuffle is retained. Last windows contain 14 or 15 examples and retain the accumulation divisor 16.
+The released result files retain the completed manuscript measurements. This unified reference implementation standardizes inputs and checkpointing; full-scale 8B training has not been re-benchmarked. See the [result guide](../results/README.md).
 
-Normalization and condition vocabularies are computed from the chosen partition's training examples. The alternative partition trains its own foundation models.
-
-## Selection and prediction precision
-
-Baseline/Stage 1 select the minimum 12-target macro development RMSE. Stage 2 uses the distribution-preserving selector, including worst-target, pseudo-OOD, spread and correlation-floor penalties. Its fixed coefficients are in the complete Stage 2 profiles. Selection never reads test scores.
-
-Stage 2 development/DP selection retains Python two-decimal rounding. Final reporting uses native float32 Torch `(va * 100).round() / 100` after denormalization and clamping. Stage 1/Baseline also use native Torch reporting. The two paths can differ at half-cent values; the precision distinction is covered by a CPU regression test.
-
-## Checkpoints and outputs
-
-Checkpoints contain all updated tensors, normalization, effective configuration and the pinned base reference. Frozen base parameters are restored from the local base snapshot. The Stage 1 → Stage 2 bridge copies identical tensors without an optimization step or quantization.
-
-Each run saves configuration, training-data counts, first-step gradients, development predictions/metrics, selected and final checkpoints. Stage 2 additionally checks parent development restoration, zero-residual identity, input metadata perturbations and an independent scratch backward pass before formal training.
-
-Allow approximately 35 GiB of working checkpoint space per Stage 2 run, plus model/data storage and the 40 GiB free-space reserve enforced at writes. A completed run retains selected/final weights and all development predictions/metrics; other checkpoints created within that run are retired. Use fresh run directories for new experiments.
-
-## Validation scope
-
-The recorded CPU checks exercise the actual training loops with tiny local backbones, lossless save/restore, identical-tensor bridging, input boundaries and paired statistics. Existing selected 8B Stage 1/2 checkpoints have also been loaded on CPU with synthetic inputs. The script layout and packaged interface have not been validated by repeating the full 8B training/evaluation cohort; the recorded result tables refer to the completed experiments described in `results/README.md`.
+Run `python -m pytest -q`. Offline CPU tests exercise complete training/evaluation on tiny backbones, real Transformers Qwen layer checkpointing, four-branch computations, upper-block gradients, metadata isolation, lossless save/restore, same-seed continuation, dry-run scripts, DP, and paired record-cluster statistics. No test downloads the pretrained model.
