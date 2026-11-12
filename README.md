@@ -4,7 +4,7 @@
 
 <p><b>Beichen Huang<sup>1</sup> · Zongxi Li<sup>1</sup> · Weiming Wang<sup>2</sup> · Haoran Xie<sup>1</sup> · Fu Lee Wang<sup>2</sup></b></p>
 <p><sup>1</sup> Division of Artificial Intelligence, Lingnan University, Hong Kong SAR<br>
-<sup>2</sup> School of Science and Technology, The Hong Kong Metropolitan University, Hong Kong SAR</p>
+<sup>2</sup> School of Science and Technology, Hong Kong Metropolitan University, Hong Kong SAR</p>
 
 <p><a href="README.md"><b>English</b></a> &nbsp;|&nbsp; <a href="README_zh.md"><b>简体中文</b></a></p>
 
@@ -49,8 +49,6 @@ Lower RMSE-VA is better. Both complementary partitions have 12 in-pool and 3 hel
 | Alternative (Alt1) | 1.6425 ± 0.0025 | 1.5740 ± 0.0073 | **1.2118 ± 0.0127** | −0.3623 | [−0.3862, −0.3397] |
 
 Intervals use 10,000 paired record-cluster resamples within targets, conditional on the fitted models. Seed SD separately describes training-seed variation. Negative Δ favors Stage 2.
-
-> These are retained manuscript experiment measurements. The unified reference implementation standardizes inputs and gradient checkpointing; its full-scale 8B training has not been re-benchmarked.
 
 [Stage/seed scores](results/stage_results.csv) · [Per-target V/A](results/per_target_results.csv) · [Baseline scores](results/baseline_results.csv) · [Paired intervals](results/paired_intervals.csv)
 

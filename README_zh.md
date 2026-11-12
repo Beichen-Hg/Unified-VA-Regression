@@ -4,7 +4,7 @@
 
 <p><b>Beichen Huang<sup>1</sup> · Zongxi Li<sup>1</sup> · Weiming Wang<sup>2</sup> · Haoran Xie<sup>1</sup> · Fu Lee Wang<sup>2</sup></b></p>
 <p><sup>1</sup> Division of Artificial Intelligence, Lingnan University, Hong Kong SAR<br>
-<sup>2</sup> School of Science and Technology, The Hong Kong Metropolitan University, Hong Kong SAR</p>
+<sup>2</sup> School of Science and Technology, Hong Kong Metropolitan University, Hong Kong SAR</p>
 
 <p><a href="README.md"><b>English</b></a> &nbsp;|&nbsp; <a href="README_zh.md"><b>简体中文</b></a></p>
 
@@ -49,8 +49,6 @@ RMSE-VA 越低越好。每个划分均含 12 个池内与 3 个留出目标，�
 | Alternative (Alt1) | 1.6425 ± 0.0025 | 1.5740 ± 0.0073 | **1.2118 ± 0.0127** | −0.3623 | [−0.3862, −0.3397] |
 
 区间采用目标内 record 整簇配对 Bootstrap（10,000 次），条件于已训练模型；seed SD 单独描述训练种子的波动。Δ 为负表示 Stage 2 误差更低。
-
-> 表中数值为保留的论文实验记录。当前统一实现标准化了输入与梯度检查点，尚未重新完成 8B 规模训练基准。
 
 [阶段逐 seed 结果](results/stage_results.csv) · [逐目标 V/A](results/per_target_results.csv) · [Baseline 明细](results/baseline_results.csv) · [完整配对区间](results/paired_intervals.csv)
 

@@ -22,6 +22,6 @@ Auxiliary decoding reports known-class coverage, accuracy, macro-F1, and confusi
 
 ## Result provenance and tests
 
-The released result files retain the completed manuscript measurements. This unified reference implementation standardizes inputs and checkpointing; full-scale 8B training has not been re-benchmarked. See the [result guide](../results/README.md).
+The files under [results/](../results/README.md) archive the three-seed (42, 13, 7) Qwen3-8B evaluation outputs and paired bootstrap summaries reported in the manuscript across both partitions.
 
 Run `python -m pytest -q`. Offline CPU tests exercise complete training/evaluation on tiny backbones, real Transformers Qwen layer checkpointing, four-branch computations, upper-block gradients, metadata isolation, lossless save/restore, same-seed continuation, dry-run scripts, DP, and paired record-cluster statistics. No test downloads the pretrained model.
